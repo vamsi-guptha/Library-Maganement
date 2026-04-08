@@ -1,12 +1,12 @@
-const Notification = require('../models/Notification');
+const store = require('../data/store');
 
 const createNotification = async (req, res) => {
   try {
     const { bookId } = req.body;
     
     // Check for duplicate pending requests
-    const existing = await Notification.findOne({
-      user: req.user._id,
+    const existing = store.findOne('notifications', {
+      user: String(req.user._id),
       book: bookId,
       status: 'Pending'
     });
@@ -15,13 +15,12 @@ const createNotification = async (req, res) => {
       return res.status(400).json({ message: 'You have already requested a notification for this book.' });
     }
 
-    const notification = new Notification({
-      user: req.user._id,
+    const createdNotification = store.create('notifications', {
+      user: String(req.user._id),
       book: bookId,
       status: 'Pending'
     });
     
-    const createdNotification = await notification.save();
     res.status(201).json(createdNotification);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -30,8 +29,18 @@ const createNotification = async (req, res) => {
 
 const getNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find({ user: req.user._id }).populate('book', 'title author book_id');
-    res.json(notifications);
+    const notifications = store.find('notifications', { user: String(req.user._id) });
+    
+    // Manually populate 'book'
+    const populated = notifications.map(notif => {
+      const bookData = store.findById('books', notif.book);
+      return {
+        ...notif,
+        book: bookData ? { _id: bookData._id, title: bookData.title, author: bookData.author, book_id: bookData.book_id } : null
+      };
+    });
+
+    res.json(populated);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -39,17 +48,17 @@ const getNotifications = async (req, res) => {
 
 const dismissNotification = async (req, res) => {
   try {
-    const notification = await Notification.findById(req.params.id);
+    const notification = store.findById('notifications', req.params.id);
     if (!notification) {
       return res.status(404).json({ message: 'Notification not found' });
     }
     
     // Ensure the user owns this notification
-    if (notification.user.toString() !== req.user._id.toString()) {
+    if (notification.user !== String(req.user._id)) {
       return res.status(401).json({ message: 'Not authorized to dismiss this notification' });
     }
 
-    await notification.deleteOne();
+    store.deleteById('notifications', req.params.id);
     res.json({ message: 'Notification dismissed' });
   } catch (error) {
     res.status(400).json({ message: error.message });

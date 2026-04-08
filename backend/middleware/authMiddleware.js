@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const store = require('../data/store');
 
 const protect = async (req, res, next) => {
   let token;
@@ -8,7 +8,16 @@ const protect = async (req, res, next) => {
     try {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-      req.user = await User.findById(decoded.id).select('-password');
+      
+      const user = store.findById('users', decoded.id);
+      if (user) {
+        // Exclude password manually to replicate .select('-password')
+        const { password, ...userWithoutPassword } = user;
+        req.user = userWithoutPassword;
+      } else {
+        throw new Error('User not found in store');
+      }
+      
       next();
     } catch (error) {
       res.status(401).json({ message: 'Not authorized, token failed' });

@@ -1,15 +1,14 @@
-const Seat = require('../models/Seat');
+const store = require('../data/store');
 
 const getSeats = async (req, res) => {
-  const seats = await Seat.find({});
+  const seats = store.get('seats');
   res.json(seats);
 };
 
 const createSeat = async (req, res) => {
   try {
     const { floor, section, gridRow, gridCol, status } = req.body;
-    const seat = new Seat({ floor, section, gridRow, gridCol, status });
-    const createdSeat = await seat.save();
+    const createdSeat = store.create('seats', { floor, section, gridRow, gridCol, status });
     res.status(201).json(createdSeat);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -18,11 +17,10 @@ const createSeat = async (req, res) => {
 
 const updateSeat = async (req, res) => {
   const { status } = req.body;
-  const seat = await Seat.findById(req.params.id);
+  const seat = store.findById('seats', req.params.id);
 
   if (seat) {
-    seat.status = status || seat.status;
-    const updatedSeat = await seat.save();
+    const updatedSeat = store.updateById('seats', req.params.id, { status: status || seat.status });
     res.json(updatedSeat);
   } else {
     res.status(404).json({ message: 'Seat not found' });
@@ -30,9 +28,8 @@ const updateSeat = async (req, res) => {
 };
 
 const deleteSeat = async (req, res) => {
-  const seat = await Seat.findById(req.params.id);
-  if (seat) {
-    await seat.deleteOne();
+  const deleted = store.deleteById('seats', req.params.id);
+  if (deleted) {
     res.json({ message: 'Seat removed' });
   } else {
     res.status(404).json({ message: 'Seat not found' });
