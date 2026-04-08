@@ -22,12 +22,19 @@ app.use('/api/notifications', notificationRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'API is running' }));
 
-const PORT = 5001;
+const PORT = process.env.PORT || 5001;
 
-// Connect DB then start server
-connectDB().then(() => {
-  // Seed data after DB is connected
-  seedData().then(() => {
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+if (process.env.NODE_ENV !== 'production') {
+  // Connect DB then start server locally
+  connectDB().then(() => {
+    // Seed data after DB is connected only locally
+    seedData().then(() => {
+      app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    });
   });
-});
+} else {
+  // Production (Vercel Serverless)
+  connectDB();
+}
+
+module.exports = app;
